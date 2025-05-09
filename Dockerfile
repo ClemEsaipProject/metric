@@ -27,13 +27,13 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Grafana
+# Grafana (correction du chemin de la clé)
 RUN wget -q -O /usr/share/keyrings/grafana.key https://apt.grafana.com/gpg.key && \
     echo "deb [signed-by=/usr/share/keyrings/grafana.key] https://apt.grafana.com stable main" > /etc/apt/sources.list.d/grafana.list && \
     apt-get update && apt-get install --no-install-recommends -y grafana && \
     rm -rf /var/lib/apt/lists/*
 
-# Prometheus et Node Exporter
+# Prometheus (correction des versions avec points)
 RUN wget https://github.com/prometheus/prometheus/releases/download/v2.43.0/prometheus-2.43.0.linux-amd64.tar.gz && \
     tar -xzf prometheus-2.43.0.linux-amd64.tar.gz && \
     mv prometheus-2.43.0.linux-amd64/prometheus /usr/local/bin/ && \
@@ -42,19 +42,20 @@ RUN wget https://github.com/prometheus/prometheus/releases/download/v2.43.0/prom
     mv prometheus-2.43.0.linux-amd64/prometheus.yml /etc/prometheus/ && \
     rm -rf prometheus*
 
+# Node Exporter (correction des versions avec points)
 RUN wget https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz && \
     tar -xzf node_exporter-1.6.1.linux-amd64.tar.gz && \
     mv node_exporter-1.6.1.linux-amd64/node_exporter /usr/local/bin/ && \
     rm -rf node_exporter*
 
-# OWASP ZAP (version portable)
+# OWASP ZAP (correction de la version)
 RUN mkdir /opt/zap && \
     wget https://github.com/zaproxy/zaproxy/releases/download/v2.14.0/ZAP_2.14.0_Linux.tar.gz && \
     tar -xzf ZAP_2.14.0_Linux.tar.gz -C /opt/zap --strip-components=1 && \
     ln -s /opt/zap/zap.sh /usr/local/bin/zaproxy && \
     rm ZAP_2.14.0_Linux.tar.gz
 
-# Création des fichiers de configuration de services via supervisord
+# Correction de la typo 'rn -> rm' et copie de la configuration
 RUN apt-get update && apt-get install -y supervisor && rm -rf /var/lib/apt/lists/*
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 

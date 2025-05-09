@@ -50,10 +50,10 @@ RUN wget https://github.com/prometheus/node_exporter/releases/download/v1.6.1/no
 
 # OWASP ZAP (correction de la version)
 RUN mkdir /opt/zap && \
-    wget https://github.com/zaproxy/zaproxy/releases/download/v2.14.0/ZAP_2.14.0_Linux.tar.gz && \
-    tar -xzf ZAP_2.14.0_Linux.tar.gz -C /opt/zap --strip-components=1 && \
+    wget https://github.com/zaproxy/zaproxy/releases/download/v2.16.1/ZAP_2.16.1_Linux.tar.gz && \
+    tar -xzf ZAP_2.16.1_Linux.tar.gz -C /opt/zap --strip-components=1 && \
     ln -s /opt/zap/zap.sh /usr/local/bin/zaproxy && \
-    rm ZAP_2.14.0_Linux.tar.gz
+    rm ZAP_2.16.1_Linux.tar.gz
 
 # Correction de la typo 'rn -> rm' et copie de la configuration
 RUN apt-get update && apt-get install -y supervisor && rm -rf /var/lib/apt/lists/*

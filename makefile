@@ -1,5 +1,5 @@
 REPO_URL=https://github.com/ClemEsaipProject/metric.git
-REPO_DIR=ton_repo
+REPO_DIR=metric
 IMAGE_NAME=outils-mesure-streaming
 CONTAINER_NAME=outils-mesure
 

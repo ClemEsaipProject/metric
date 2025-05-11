@@ -1,0 +1,246 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+\title{Protocole d'Expérience\\
+Analyse comparative des plateformes de streaming sécurisées}
+\author{Groupe PSIR}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Préparation de l’environnement}
+
+\subsection{Création du dossier de travail et organisation des fichiers}
+\begin{enumerate}[label=\alph*)]
+    \item Ouvrir un terminal.
+    \item Créer un dossier dédié au projet et s'y placer :
+    \begin{verbatim}
+    mkdir ~/psir_streaming_exp
+    cd ~/psir_streaming_exp
+    \end{verbatim}
+    \item Cloner le repository :
+    \begin{verbatim}
+    git clone https://github.com/ClemEsaipProject/metric.git
+    \end{verbatim}
+    \item Placer le \texttt{Makefile} à la racine de \texttt{~/psir_streaming_exp}, au même niveau que le dossier \texttt{metric}.
+    \item Vérifier la structure suivante :
+    \begin{verbatim}
+    ~/psir_streaming_exp/
+    ├── Makefile
+    └── metric/
+        ├── Dockerfile
+        ├── supervisord.conf
+        └── (autres fichiers)
+    \end{verbatim}
+\end{enumerate}
+
+\section{Installation et lancement de l’environnement Docker}
+
+\begin{enumerate}[label=\alph*)]
+    \item Construire l’image Docker :
+    \begin{verbatim}
+    make build
+    \end{verbatim}
+    \item Lancer le conteneur Docker :
+    \begin{verbatim}
+    make run
+    \end{verbatim}
+    \item Les ports exposés sont :
+    \begin{itemize}
+        \item Grafana : \url{http://localhost:3000}
+        \item Prometheus : \url{http://localhost:9090}
+        \item Node Exporter : \url{http://localhost:9100}
+    \end{itemize}
+    \item Arrêter et nettoyer :
+    \begin{verbatim}
+    make stop      # Arrête et supprime le conteneur
+    make clean     # Supprime conteneur et image Docker
+    make rebuild   # Nettoie, clone et reconstruit tout
+    \end{verbatim}
+\end{enumerate}
+
+\section{Prérequis : Configuration de Grafana et Prometheus}
+
+\subsection{Vérification des services}
+\begin{itemize}
+    \item Ouvrir un navigateur :
+    \begin{itemize}
+        \item Prometheus : \url{http://localhost:9090}
+        \item Grafana : \url{http://localhost:3000}
+        \item Node Exporter : \url{http://localhost:9100}
+    \end{itemize}
+\end{itemize}
+
+\subsection{Configuration de Prometheus}
+\begin{itemize}
+    \item Vérifier que le fichier \texttt{prometheus.yml} contient :
+\begin{verbatim}
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['localhost:9100']
+\end{verbatim}
+    \item Adapter les cibles si besoin (multi-conteneur Docker).
+\end{itemize}
+
+\subsection{Ajout de Prometheus dans Grafana}
+\begin{enumerate}[label=\alph*)]
+    \item Se connecter à Grafana (admin/admin).
+    \item Aller dans \textbf{Configuration > Data Sources}.
+    \item Ajouter une source de données \textbf{Prometheus}.
+    \item Renseigner l’URL : \texttt{http://localhost:9090} ou \texttt{http://prometheus:9090}.
+    \item Cliquer sur \textbf{Save \& Test}.
+\end{enumerate}
+
+\subsection{Importation d’un dashboard Grafana}
+\begin{itemize}
+    \item Aller dans \textbf{Dashboards > Import}.
+    \item Utiliser l’ID \texttt{1860} (Node Exporter Full) ou créer un dashboard personnalisé.
+    \item Sélectionner la source de données Prometheus.
+\end{itemize}
+
+\section{Protocole de mesure : étapes détaillées}
+
+\subsection{Préparation de la capture réseau}
+\textbf{Pourquoi ?} Capturer tout le trafic réseau du test, y compris l’établissement de la connexion.
+
+\textbf{Comment faire ?}
+\begin{enumerate}[label=\alph*)]
+    \item Accéder au conteneur Docker :
+    \begin{verbatim}
+    docker exec -it outils-mesure bash
+    \end{verbatim}
+    \item Identifier l’interface réseau (souvent \texttt{eth0}) :
+    \begin{verbatim}
+    ip addr
+    \end{verbatim}
+    \item Lancer la capture avec tshark (remplacer \texttt{<nom\_fichier>} par un nom explicite) :
+    \begin{verbatim}
+    tshark -i eth0 -w /data/<nom_fichier>.pcap
+    \end{verbatim}
+    \item Laisser la capture tourner, \textbf{ne pas envoyer le flux avant cette étape}.
+\end{enumerate}
+
+\subsection{Envoi du flux vers la plateforme cible}
+\textbf{Pourquoi ?} Tester en conditions réelles la gestion du chiffrement, de l’anonymisation, la latence et la sécurité.
+
+\textbf{Comment faire ?}
+\begin{enumerate}[label=\alph*)]
+    \item Récupérer l’URL et la clé de stream de la plateforme.
+    \item Générer et envoyer le flux vidéo de test (exemple 4K) :
+    \begin{verbatim}
+    ffmpeg -re -f lavfi -i testsrc=size=3840x2160:rate=30 -c:v libx264 -preset veryfast -f flv rtmp://URL_SERVEUR/cle_stream
+    \end{verbatim}
+    \item Vérifier sur la plateforme que le flux est bien reçu.
+\end{enumerate}
+
+\subsection{Arrêt de la capture réseau}
+\textbf{Pourquoi ?} Obtenir un fichier pcap propre, limité à la session étudiée.
+
+\textbf{Comment faire ?}
+\begin{itemize}
+    \item Arrêter la capture avec \texttt{Ctrl+C}.
+    \item Le fichier \texttt{/data/<nom\_fichier>.pcap} contient tous les paquets du test.
+\end{itemize}
+
+\subsection{Analyse du trafic réseau}
+\textbf{Pourquoi ?} Mesurer latence, débit, sécurité du transport.
+
+\textbf{Comment faire ?}
+\begin{enumerate}[label=\alph*)]
+    \item Ouvrir le fichier pcap dans Wireshark.
+    \item Utiliser les filtres pour isoler le trafic d’intérêt (\texttt{tcp}, \texttt{udp}, \texttt{ip.addr==...}).
+    \item Mesurer : latence (timestamps), débit (Statistiques $>$ Conversations), sécurité (données sensibles en clair).
+\end{enumerate}
+
+\subsection{Mesure de la qualité vidéo}
+\textbf{Pourquoi ?} Quantifier la dégradation via PSNR, SSIM, VMAF.
+
+\textbf{Comment faire ?}
+\begin{enumerate}[label=\alph*)]
+    \item Récupérer la vidéo traitée par la plateforme.
+    \item Comparer à l’originale :
+    \begin{verbatim}
+    ffmpeg -i video_recue.mp4 -i video_originale.mkv -lavfi "libvmaf=psnr=1:ssim=1:log_path=metrics.json" -f null -
+    \end{verbatim}
+    \item Consulter les scores dans \texttt{metrics.json}.
+\end{enumerate}
+
+\subsection{Surveillance des ressources système}
+\textbf{Pourquoi ?} Évaluer l’impact sur CPU, RAM, stabilité.
+
+\textbf{Comment faire ?}
+\begin{itemize}
+    \item Accéder à Grafana (\url{http://localhost:3000}).
+    \item Consulter les dashboards (Node Exporter Full).
+\end{itemize}
+
+\subsection{Tests de sécurité et d’anonymisation}
+\textbf{Pourquoi ?} Vérifier robustesse du chiffrement, résistance MITM, anonymisation.
+
+\textbf{Comment faire ?}
+\begin{enumerate}[label=\alph*)]
+    \item Lancer OWASP ZAP dans le conteneur :
+    \begin{verbatim}
+/usr/local/bin/zaproxy &
+    \end{verbatim}
+    \item Configurer un scan sur l’URL du flux ou du service cible.
+    \item Analyser les alertes (failles TLS, données sensibles non chiffrées, etc.).
+    \item Vérifier visuellement ou via script Python/OpenCV que les zones sensibles sont floutées.
+\end{enumerate}
+
+\section{Organisation des données et bonnes pratiques}
+\begin{itemize}
+    \item Créer un dossier par plateforme et par scénario pour stocker captures, vidéos, métriques et logs.
+    \item Noter systématiquement : date, heure, plateforme, configuration réseau, scénario, paramètres de test.
+    \item Centraliser les résultats dans un tableau Excel ou Sheets pour l’analyse comparative.
+\end{itemize}
+
+\section{Récapitulatif du workflow}
+
+\begin{tabular}{|p{4.5cm}|p{9cm}|}
+\hline
+\textbf{Étape} & \textbf{Commande ou action clé} \\
+\hline
+Création du dossier projet & \texttt{mkdir ~/psir_streaming_exp \&\& cd ~/psir_streaming_exp} \\
+Clonage du repo & \texttt{git clone https://github.com/ClemEsaipProject/metric.git} \\
+Placement du Makefile & Placez-le à la racine, à côté de \texttt{metric} \\
+Build de l’image & \texttt{make build} \\
+Lancement du conteneur & \texttt{make run} \\
+Configuration Grafana/Prom & Voir section dédiée \\
+Préparation capture réseau & \texttt{docker exec -it outils-mesure bash} puis \texttt{tshark -i eth0 -w /data/capture.pcap} \\
+Génération/envoi du flux & \texttt{ffmpeg ... -f flv rtmp://URL/cle_stream} \\
+Arrêt de la capture & \texttt{Ctrl+C} dans le terminal tshark \\
+Analyse qualité vidéo & \texttt{ffmpeg -i video\_recue.mp4 -i video\_originale.mkv -lavfi "libvmaf=..." -f null -} \\
+Monitoring ressources & Accès Grafana \url{http://localhost:3000} \\
+Sécurité/anonymisation & \texttt{/usr/local/bin/zaproxy \&} puis scan sur le flux \\
+Arrêt/nettoyage & \texttt{make stop} ou \texttt{make clean} \\
+\hline
+\end{tabular}
+
+\vspace{1em}
+
+\section{Suggestions d’amélioration}
+\begin{itemize}
+    \item Documenter chaque test dans un carnet de laboratoire pour la traçabilité.
+    \item Automatiser la collecte et l’archivage des résultats via des scripts shell ou Python.
+    \item Ajouter des exemples de scripts d’analyse pour l’exploitation scientifique des données.
+    \item Inclure un fichier \texttt{README.md} rappelant la structure et les commandes principales.
+    \item Vérifier régulièrement les versions des outils pour garantir la reproductibilité.
+\end{itemize}
+
+\end{document}
